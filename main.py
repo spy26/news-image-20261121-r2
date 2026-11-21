@@ -5,17 +5,22 @@ Skrip ini menghasilkan ``entry.png`` untuk kompetisi make.fun
 
 Cara kerja: menyalin berkas gambar sumber yang sudah disiapkan
 (``source.jpg``, hasil riset berita 21 November hari penuh) menjadi
-``entry.png`` di folder yang sama, lalu memeriksa hasilnya:
+``entry.png`` di folder keluaran, lalu memeriksa hasilnya:
 format JPEG dikenali dari magic bytes, ukuran tidak melebihi 1 MiB,
 dan sidik SHA-256 salinan sama persis dengan sumber.
 
-Penyalinan murni byte-ke-byte, jadi dua kali jalan selalu memberi
-hasil yang identik. Hanya memakai pustaka standar Python.
+Folder keluaran dibaca dari variabel lingkungan
+``MAKEFUN_OUTPUT_DIR`` (bawaan ``/output``) — repo tempat skrip ini
+berada bersifat read-only saat dinilai, jadi hasil TIDAK boleh
+ditulis ke folder repo. Penyalinan murni byte-ke-byte, jadi dua kali
+jalan selalu memberi hasil yang identik. Hanya memakai pustaka
+standar Python.
 """
 
 from __future__ import annotations
 
 import hashlib
+import os
 import pathlib
 import sys
 
@@ -30,6 +35,16 @@ SIDIK_SUMBER = (
 def folder_repo() -> pathlib.Path:
     """Folder tempat skrip ini berada (folder repo entri)."""
     return pathlib.Path(__file__).resolve().parent
+
+
+def folder_keluaran() -> pathlib.Path:
+    """Folder tujuan dari lingkungan, atau /output.
+
+    Repo bersifat read-only saat dinilai (grader memasang repo di
+    /bot tanpa tulis), jadi hasil harus ke MAKEFUN_OUTPUT_DIR.
+    """
+    tujuan = os.environ.get("MAKEFUN_OUTPUT_DIR", "").strip()
+    return pathlib.Path(tujuan) if tujuan else pathlib.Path("/output")
 
 
 def temukan_sumber(folder: pathlib.Path) -> pathlib.Path:
@@ -82,7 +97,9 @@ def jalankan() -> int:
     if sidik_jari(sumber) != SIDIK_SUMBER:
         raise SystemExit("sidik sumber tidak cocok dengan yang tercatat")
     ukuran = periksa_jpeg(sumber)
-    tujuan = folder / NAMA_KELUARAN
+    keluaran = folder_keluaran()
+    keluaran.mkdir(parents=True, exist_ok=True)
+    tujuan = keluaran / NAMA_KELUARAN
     sidik = hasilkan_entri(sumber, tujuan)
     print(f"dibuat: {tujuan}")
     print(f"ukuran: {ukuran} byte")
